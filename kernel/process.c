@@ -184,6 +184,7 @@ int do_fork( process* parent)
           (void*)lookup_pa(parent->pagetable, parent->mapped_info[i].va), PGSIZE );
         break;
       case CODE_SEGMENT:
+      {
         // TODO (lab3_1): implment the mapping of child code segment to parent's
         // code segment.
         // hint: the virtual address mapping of code segment is tracked in mapped_info
@@ -203,6 +204,25 @@ int do_fork( process* parent)
         child->mapped_info[child->total_mapped_region].seg_type = CODE_SEGMENT;
         child->total_mapped_region++;
         break;
+      }
+      case DATA_SEGMENT:
+      {
+        uint64 maxlength=parent->mapped_info[i].npages*PGSIZE;//copy all the DATA_SEGMENT pages to new pages.
+        for(uint64 offset=0;offset<maxlength;offset+=PGSIZE)
+        {
+          uint64 pa=lookup_pa(parent->pagetable,parent->mapped_info[i].va+offset);
+          void *newpa=alloc_page();
+          memcpy(newpa,(void *)pa,PGSIZE);
+          map_pages(child->pagetable,parent->mapped_info[i].va+offset,PGSIZE,(uint64)newpa,prot_to_type(PROT_WRITE | PROT_READ, 1));
+        }
+        // after mapping, register the vm region (do not delete codes below!)
+        child->mapped_info[child->total_mapped_region].va = parent->mapped_info[i].va;
+        child->mapped_info[child->total_mapped_region].npages =
+          parent->mapped_info[i].npages;
+        child->mapped_info[child->total_mapped_region].seg_type = DATA_SEGMENT;
+        child->total_mapped_region++;
+        break;
+      }
     }
   }
 
@@ -212,4 +232,56 @@ int do_fork( process* parent)
   insert_to_ready_queue( child );
 
   return child->pid;
+}
+
+
+
+//
+//pid==-1 means that parent process waiting any child process to exit.
+//pid<NPROC && pid >=0 means waiting the procs[pid] to finish.
+//other pid means illegal.
+//
+long do_wait(long pid)
+{
+  long ret=-2;//-2 means that child process not exists or pid illegal.
+  if(pid==-1)//Parent process waiting any child process to exit.
+  {
+    for( long i=0; i<NPROC; i++ )
+    {
+      if(procs[i].parent==current)
+      {
+        ret=-1;//-1 means that child process exists but not finish.
+        if(procs[i].status==ZOMBIE)
+        {
+          procs[i].status = FREE;//free the child process. 
+          ret=i;//ret>=0 means child process[ret] finish and free;
+          break;
+        }
+      }
+    }
+  }
+  else if (pid<NPROC && pid > 0 )//pid legal
+  {
+    if(procs[pid].parent==current)
+    {
+      if(procs[pid].status==ZOMBIE)
+      {
+        procs[pid].status=FREE;//free the child process. 
+        ret=pid;//ret==pid means child process[pid] finish;
+      }
+      else
+      {
+        ret=-1;//ret=-1 means child process[pid] finish and free;
+      }
+    }
+    else
+    {
+      ret=-2;
+    }
+  }
+  else
+  {
+    ret=-2;
+  }
+  return ret;
 }

@@ -76,3 +76,30 @@ int fork() {
 void yield() {
   do_user_call(SYS_user_yield, 0, 0, 0, 0, 0, 0, 0);
 }
+
+//
+//
+//
+void myschedule()
+{
+  do_user_call(SYS_user_schedule, 0, 0, 0, 0, 0, 0, 0);
+}
+
+
+//
+// lib call to wait
+// 
+long wait(int pid)
+{
+  long ret = do_user_call(SYS_user_wait, pid, 0, 0, 0, 0, 0, 0);
+  switch(ret)
+  {
+    case -2://parent process has no child process or pid illegal.
+            return -1;
+    case -1://child process has not finished.
+            myschedule();
+            return wait(pid);
+    default://child process has finished
+            return ret;
+  }
+}
