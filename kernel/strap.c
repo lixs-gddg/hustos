@@ -64,6 +64,11 @@ void handle_user_page_fault(uint64 mcause, uint64 sepc, uint64 stval) {
         void *pa=alloc_page();
         int ans=map_pages(current->pagetable,ROUNDDOWN(stval, PGSIZE),PGSIZE,(uint64)pa, prot_to_type(PROT_WRITE | PROT_READ, 1));
       }
+      if(!lookup_pa(current->pagetable,stval))//lab2_challenge1:该处虚拟地址尚未有对应的物理地址映射，因此属于非法地址的访问.
+      {
+        sprint("this address is not available!\n");
+        shutdown(-1);
+      }
       break;
     default:
       sprint("unknown page fault.\n");
