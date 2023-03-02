@@ -13,6 +13,9 @@ typedef struct elf_info_t {
   process *p;
 } elf_info;
 
+//change for lab1_challenge1_backtrace
+//elf loading. elf_ctx is defined in kernel/elf.h, used to track the loading process. This is a global value.
+elf_ctx elfloader;
 //
 // the implementation of allocater. allocates memory space for later segment loading
 //
@@ -113,8 +116,7 @@ void load_bincode_from_host_elf(process *p) {
 
   sprint("Application: %s\n", arg_bug_msg.argv[0]);
 
-  //elf loading. elf_ctx is defined in kernel/elf.h, used to track the loading process.
-  elf_ctx elfloader;
+
   // elf_info is defined above, used to tie the elf file and its corresponding process.
   elf_info info;
 
@@ -133,8 +135,39 @@ void load_bincode_from_host_elf(process *p) {
   // entry (virtual, also physical in lab1_x) address
   p->trapframe->epc = elfloader.ehdr.entry;
 
+  // added for lab1_challenge1_backtrace.
+  if(elf_load_symbol_string(&elfloader)!=EL_OK) panic("fail to load elf symbols or string table.\n");
+
   // close the host spike file
   spike_file_close( info.f );
 
   sprint("Application program entry point (virtual address): 0x%lx\n", p->trapframe->epc);
+}
+
+//
+// added for lab1_challenge1_backtrace.
+// to load the symbol table and string table section into memory.
+//
+
+elf_status elf_load_symbol_string(elf_ctx *ctx)
+{
+  elf_sect_header sectheader;
+  int i, off;
+  int offstr=0;
+  // load symbol table and string table
+  for(i=0,off=ctx->ehdr.shoff;i<ctx->ehdr.shnum;++i,off+=sizeof(sectheader))
+  {
+    if(elf_fpread(ctx,(void *)&sectheader,sizeof(sectheader),off)!=sizeof(sectheader)) return EL_EIO;
+    if(sectheader.sh_type == SHT_SYMTAB)// symbol table
+    {
+      if(elf_fpread(ctx,&ctx->symtab,sectheader.sh_size,sectheader.sh_offset)!=sectheader.sh_size) return EL_EIO;
+      ctx->symtab_length=sectheader.sh_size/sizeof(elf_symbol);
+    }
+    else if(sectheader.sh_type == SHT_STRTAB)// string tables
+    {
+      if(elf_fpread(ctx,&ctx->strtab+offstr,sectheader.sh_size,sectheader.sh_offset)!=sectheader.sh_size) return EL_EIO;
+      offstr+=sectheader.sh_size;
+    }
+  }
+  return EL_OK;
 }
