@@ -277,6 +277,10 @@ void load_bincode_from_host_elf(process *p) {
   // load elf. elf_load() is defined above.
   if (elf_load(&elfloader) != EL_OK) panic("Fail on loading elf.\n");
 
+  //added for lab1_challenge2_errorline.
+
+  //load debugline.
+  if (elf_load_debugline(&elfloader)!=EL_OK) panic("Fail on loading section '.debugline'");
   // entry (virtual, also physical in lab1_x) address
   p->trapframe->epc = elfloader.ehdr.entry;
 
@@ -284,4 +288,32 @@ void load_bincode_from_host_elf(process *p) {
   spike_file_close( info.f );
 
   sprint("Application program entry point (virtual address): 0x%lx\n", p->trapframe->epc);
+}
+
+//added for lab1_challenge2_errorline
+//to load the section .debugline
+char debugline[16384];
+elf_status elf_load_debugline(elf_ctx *ctx)
+{
+    elf_sect_header sectheader;
+    elf_sect_header shstrtab_header;
+    //load shstrtab to use the name of the section;
+    if(elf_fpread(ctx,(void *)&shstrtab_header,sizeof(shstrtab_header),ctx->ehdr.shoff+ctx->ehdr.shstrndx*sizeof(elf_sect_header))!=sizeof(shstrtab_header)) return EL_EIO;
+    int i, off;
+    char sectname[20];
+    //load debugline section 
+    for(i=0,off=ctx->ehdr.shoff;i<ctx->ehdr.shnum;++i,off+=sizeof(sectheader))
+    {
+        if(elf_fpread(ctx,(void *)&sectheader,sizeof(sectheader),off)!=sizeof(sectheader)) return EL_EIO;
+        //find the section name.
+        if(elf_fpread(ctx,(void *)sectname,20*sizeof(char),shstrtab_header.offset+sectheader.name)!=20*sizeof(char)) return EL_EIO;
+        if(!strcmp(sectname,".debug_line"))
+        {
+            if(elf_fpread(ctx,(void *)debugline,sectheader.size,sectheader.offset)!=sectheader.size) return EL_EIO;
+            make_addr_line(ctx,(char *)debugline,sectheader.size);
+            break;
+        }
+
+    }
+  return EL_OK;
 }

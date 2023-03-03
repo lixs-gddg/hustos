@@ -6,6 +6,20 @@
 
 #define MAX_CMDLINE_ARGS 64
 
+/* Legal values for sh_type (section type).  */
+#define SHT_NULL	  0		/* Section header table entry unused */
+#define SHT_PROGBITS	  1		/* Program data */
+#define SHT_SYMTAB	  2		/* Symbol table */
+#define SHT_STRTAB	  3		/* String table */
+#define SHT_RELA	  4		/* Relocation entries with addends */
+#define SHT_HASH	  5		/* Symbol hash table */
+#define SHT_DYNAMIC	  6		/* Dynamic linking information */
+#define SHT_NOTE	  7		/* Notes */
+#define SHT_NOBITS	  8		/* Program space with no data (bss) */
+#define SHT_REL		  9		/* Relocation entries, no addends */
+#define SHT_SHLIB	  10		/* Reserved */
+#define SHT_DYNSYM	  11		/* Dynamic linker symbol table */
+
 // elf header structure
 typedef struct elf_header_t {
   uint32 magic;
@@ -84,6 +98,7 @@ typedef struct elf_ctx_t {
 
 elf_status elf_init(elf_ctx *ctx, void *info);
 elf_status elf_load(elf_ctx *ctx);
+elf_status elf_load_debugline(elf_ctx *ctx);
 
 void load_bincode_from_host_elf(process *p);
 
