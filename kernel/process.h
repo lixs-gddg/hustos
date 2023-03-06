@@ -73,6 +73,20 @@ typedef struct process_t {
   int tick_count;
 }process;
 
+//add for lab3_challeng2
+typedef struct semaphore_t
+{
+  int value;
+  int length;
+  process *queue_head;
+  process *queue_tail;
+}semaphore;
+#define NSEMS 64
+//added for lab3_challenge2
+void init_semaphores(semaphore *sems,int len);
+int request_sem(int value);
+int dec_sem(int semnum);
+int inc_sem(int semnum);
 // switch to run user app
 void switch_to(process*);
 

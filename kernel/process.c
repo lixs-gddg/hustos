@@ -175,6 +175,7 @@ int do_fork( process* parent)
   for( int i=0; i<parent->total_mapped_region; i++ ){
     // browse parent's vm space, and copy its trapframe and data segments,
     // map its code segment.
+    uint64 pa;
     switch( parent->mapped_info[i].seg_type ){
       case CONTEXT_SEGMENT:
         *child->trapframe = *parent->trapframe;
@@ -194,7 +195,7 @@ int do_fork( process* parent)
         // segment of parent process.
         // DO NOT COPY THE PHYSICAL PAGES, JUST MAP THEM.
         //panic( "You need to implement the code segment mapping of child in lab3_1.\n" );
-        uint64 pa=lookup_pa(parent->pagetable,parent->mapped_info[i].va);
+        pa=lookup_pa(parent->pagetable,parent->mapped_info[i].va);
         map_pages(child->pagetable,parent->mapped_info[i].va,PGSIZE,pa,prot_to_type(PROT_EXEC | PROT_READ, 1));
         // after mapping, register the vm region (do not delete codes below!)
         child->mapped_info[child->total_mapped_region].va = parent->mapped_info[i].va;
@@ -213,3 +214,103 @@ int do_fork( process* parent)
 
   return child->pid;
 }
+
+
+//added for lab3_challenge2
+semaphore global_sems[NSEMS];
+int is_init=0;
+void init_semaphores(semaphore *sems,int len)
+{
+  for(int i=0;i<len;i++)
+  {
+    sems[i].value=-1;
+    sems[i].length=-1;
+    sems[i].queue_head=NULL;
+    sems[i].queue_tail=NULL;
+  }
+}
+
+int request_sem(int value)
+{
+  if(is_init==0)
+  {
+    init_semaphores(global_sems,NSEMS);
+    is_init=1;
+  }
+  for(int i=0;i<NSEMS;i++)
+  {
+    if(global_sems[i].length<0)//if this semaphores isn`t used, the length is -1.
+    {
+      global_sems[i].value=value;
+      global_sems[i].length=0;
+      global_sems[i].queue_head=NULL;
+      global_sems[i].queue_tail=NULL;
+      return i;
+    }
+  }
+  sprint("All semaphores are used");
+  return -1;
+}
+
+int dec_sem(int semnum)
+{
+  if(semnum<0||semnum>=NSEMS)
+  {
+    sprint("The sem number is illegal\n");
+    return -1;
+  }
+  if(global_sems[semnum].length==-1) 
+  {
+    sprint("This sem is not used\n");
+    return -1;
+  }
+  global_sems[semnum].value--;
+  if(global_sems[semnum].value<0)
+  {
+    if(global_sems[semnum].length==0) //the process queue is empty.
+    {
+      global_sems[semnum].queue_head=current;
+      global_sems[semnum].queue_tail=global_sems[semnum].queue_head;
+    }
+    else
+    {
+      global_sems[semnum].queue_tail->queue_next=current;
+      global_sems[semnum].queue_tail=current;
+    }
+    global_sems[semnum].length++;
+    current->queue_next=NULL;
+    current->status=BLOCKED;
+    schedule();
+  }
+  return 0;
+}
+
+int inc_sem(int semnum)
+{
+  if(semnum<0||semnum>=NSEMS)
+  {
+    sprint("The sem number is illegal\n");
+    return -1;
+  }
+  if(global_sems[semnum].length==-1) 
+  {
+    sprint("This sem is not used\n");
+    return -1;
+  }
+  if(global_sems[semnum].length==-1) return -1;
+  global_sems[semnum].value++;
+  if(global_sems[semnum].length>0)
+  {
+    process *readyprocess=global_sems[semnum].queue_head;
+    global_sems[semnum].queue_head=readyprocess->queue_next;
+    global_sems[semnum].length--;
+    insert_to_ready_queue(readyprocess);
+  }
+  if(global_sems[semnum].length==0)//the process queue is empty.
+  {
+    global_sems[semnum].queue_head=NULL;
+    global_sems[semnum].queue_tail=NULL;
+  }  
+  return 0;
+}
+
