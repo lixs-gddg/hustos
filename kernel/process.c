@@ -64,3 +64,11 @@ void switch_to(process* proc) {
   // note, return_to_user takes two parameters @ and after lab2_1.
   return_to_user(proc->trapframe, user_satp);
 }
+
+//add for lab2_challenge2
+// to expand n byte for current process; 
+void expandprocess(uint64 n)
+{
+  if(n<0) panic("fail in expanding space for process!\n");
+  current->heap_free_addr=user_vm_malloc(current->pagetable,current->heap_free_addr,n);
+}

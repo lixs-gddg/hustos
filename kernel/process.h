@@ -26,10 +26,20 @@ typedef struct process_t {
   pagetable_t pagetable;
   // trapframe storing the context of a (User mode) process.
   trapframe* trapframe;
+
+  //add for lab2_challenge2
+  uint64 heap_free_addr; //the first address that heap can used;
+  uint64 heap_occurpied_start;
+  uint64 heap_occurpied_last;
+  uint64 heap_empty_start;
+  uint64 heap_empty_last;
 }process;
 
 // switch to run user app
 void switch_to(process*);
+
+// add for lab2_challeng2
+void expandprocess(uint64 n); 
 
 // current running process
 extern process* current;
