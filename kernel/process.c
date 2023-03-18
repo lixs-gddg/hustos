@@ -96,7 +96,7 @@ void init_malloc()
 //to memory alignment
 uint64 mem_alignment(uint64 addr)
 {
-  uint64 amo = (8 - (addr%8))%8;
+  uint64 amo = 8 - (addr%8);
   return addr+amo;
 }
 
