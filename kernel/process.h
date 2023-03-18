@@ -2,7 +2,6 @@
 #define _PROC_H_
 
 #include "riscv.h"
-
 typedef struct trapframe_t {
   // space to store context (all common registers)
   /* offset:0   */ riscv_regs regs;
@@ -28,11 +27,9 @@ typedef struct process_t {
   trapframe* trapframe;
 
   //add for lab2_challenge2
-  uint64 heap_free_addr; //the first address that heap can used;
+  uint64 heap_sz; //the first address that heap can used;
   uint64 heap_occurpied_start;
   uint64 heap_occurpied_last;
-  uint64 heap_empty_start;
-  uint64 heap_empty_last;
 }process;
 
 // switch to run user app
@@ -40,7 +37,10 @@ void switch_to(process*);
 
 // add for lab2_challeng2
 void expandprocess(uint64 n); 
-
+void init_malloc();
+uint64 mem_alignment();
+uint64 my_malloc(int n);
+void my_free(uint64 addr);
 // current running process
 extern process* current;
 

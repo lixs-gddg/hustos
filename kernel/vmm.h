@@ -2,7 +2,8 @@
 #define _VMM_H_
 
 #include "riscv.h"
-
+#define PGROUNDUP(sz)  (((sz)+PGSIZE-1) & ~(PGSIZE-1))
+#define PGROUNDDOWN(a) (((a)) & ~(PGSIZE-1))
 //add for lab2_challenge2
 typedef struct memory_control_block
 {
@@ -11,7 +12,6 @@ typedef struct memory_control_block
   int size;
   struct memory_control_block *next_mcb; 
 }MCB;
-
 /* --- utility functions for virtual address mapping --- */
 int map_pages(pagetable_t pagetable, uint64 va, uint64 size, uint64 pa, int perm);
 // permission codes.
@@ -40,5 +40,6 @@ void *user_va_to_pa(pagetable_t page_dir, void *va);
 void user_vm_map(pagetable_t page_dir, uint64 va, uint64 size, uint64 pa, int perm);
 void user_vm_unmap(pagetable_t page_dir, uint64 va, uint64 size, int free);
 // add for lab2_challenge
-uint64 user_vm_malloc(pagetable_t pagetable,uint64 old_addr,uint64 n);
+uint64 user_vm_malloc(pagetable_t pagetable,uint64 old_sz,uint64 new_sz);
+
 #endif

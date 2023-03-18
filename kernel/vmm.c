@@ -231,19 +231,27 @@ void user_vm_unmap(pagetable_t page_dir, uint64 va, uint64 size, int free)
   }
 }
 
-// add for lab2_challenge
+// add for lab2_challenge2
 // to add the corresponding physical address mapping to the new virtual address
-uint64 user_vm_malloc(pagetable_t pagetable, uint64 old_addr, uint64 n)
+uint64 user_vm_malloc(pagetable_t pagetable, uint64 old_sz,uint64 new_sz)
 {
-  if (n <= 0)
-    return old_addr;
-  uint64 pa;
-  for (uint64 va = PGROUNDUP(old_addr); va < old_addr+n; va += PGSIZE)
+  if(old_sz>=new_sz) return old_sz;
+  uint64 a;
+  char *memory;
+  for(a=PGROUNDUP(old_sz);a<new_sz;a+=PGSIZE)
   {
-    pa=(uint64)alloc_page();
-    if(pa==0) panic("Fail int user_vm_malloc!\n");
-    memset(pa,0,PGSIZE);
-    map_pages(pagetable,va,PGSIZE,pa,prot_to_type(PROT_READ|PROT_WRITE,1));
+    memory=(char *)alloc_page();
+    if(memory==0)
+    {
+      panic("failed in alloc_page!\n");
+    }
+    memset(memory, 0, sizeof(uint8)*PGSIZE);
+    if(map_pages(pagetable,a,PGSIZE,(uint64)memory,prot_to_type(PROT_READ | PROT_WRITE,1))!=0)
+    {
+      free_page(memory);
+      panic("failed in map_pages!\n");
+    }
   }
-  return old_addr+n;
+  return new_sz;
 }
+

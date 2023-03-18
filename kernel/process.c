@@ -16,6 +16,7 @@
 #include "pmm.h"
 #include "memlayout.h"
 #include "spike_interface/spike_utils.h"
+#include "limits.h"
 
 //Two functions defined in kernel/usertrap.S
 extern char smode_trap_vector[];
@@ -70,5 +71,99 @@ void switch_to(process* proc) {
 void expandprocess(uint64 n)
 {
   if(n<0) panic("fail in expanding space for process!\n");
-  current->heap_free_addr=user_vm_malloc(current->pagetable,current->heap_free_addr,n);
+  user_vm_malloc(current->pagetable,current->heap_sz,current->heap_sz+n);
+  current->heap_sz+=n;
+}
+
+int is_init_malloc=0;
+
+//to init the malloc function;
+
+void init_malloc()
+{
+  current->heap_sz = USER_FREE_ADDRESS_START;
+  uint64 addr = current->heap_sz;
+  expandprocess(sizeof(MCB));
+  pte_t *pte = page_walk(current->pagetable, addr, 0);
+  MCB *first_mcb = (MCB *) PTE2PA(*pte);
+  current->heap_occurpied_start = (uint64) first_mcb;
+  first_mcb->next_mcb = NULL;
+  first_mcb->size = 0;
+  current->heap_occurpied_last = (uint64)first_mcb;
+  is_init_malloc = 1;
+}
+
+//to memory alignment
+uint64 mem_alignment(uint64 addr)
+{
+  uint64 amo = (8 - (addr%8))%8;
+  return addr+amo;
+}
+
+//to find the MCB for the addr
+MCB *find_MCB(pagetable_t pagetable, uint64 addr)
+{
+  pte_t *pte = page_walk(pagetable, addr, 1);
+  uint64 pageoffset=addr & 0xfff;
+  return (MCB *)mem_alignment(PTE2PA(*pte) + pageoffset);
+}
+
+//to malloc memory for process.
+uint64 my_malloc(int n)
+{
+  if(is_init_malloc==0)
+  {
+    init_malloc();
+  }
+  MCB *cur = (MCB *)current->heap_occurpied_start;
+  MCB *last = (MCB *)current->heap_occurpied_last;
+  MCB *g=(MCB *)current->heap_occurpied_start;
+  int flag=0;
+  int min_n=INT_MAX;
+  //find the most suitable space for the process.
+  for(cur=(MCB *)current->heap_occurpied_start;cur!=last->next_mcb;cur=cur->next_mcb)
+  {
+    if(cur->size>=n && cur->is_occupied==0)
+    {
+      flag=1;
+      if(cur->size<min_n)
+      {
+        min_n=cur->size;
+        g=cur;
+      }
+      if(cur->size==n)//the most suitable one.
+      {
+        cur->is_occupied=1;
+        return cur->start_address+sizeof(MCB);
+      }
+    }
+  }
+  //find the already exist MCB which can be used for process.
+  if(flag)
+  {
+   g->is_occupied=1;
+   return g->start_address+sizeof(MCB);
+  }
+  else
+  {
+    uint64 va = current->heap_sz;
+    expandprocess((uint64) (sizeof(MCB) + n + 8));
+    MCB *new_mcb=find_MCB(current->pagetable,va);
+    new_mcb->is_occupied = 1;
+    new_mcb->start_address = va;
+    new_mcb->size = n;
+    new_mcb->next_mcb = last->next_mcb;
+    last->next_mcb = new_mcb;
+    current->heap_occurpied_last=(uint64)new_mcb;
+    return va + sizeof(MCB);
+  }
+}
+
+void my_free(uint64 firstaddr)
+{
+  firstaddr = ((uint64)firstaddr - sizeof(MCB));
+  MCB *cur=find_MCB(current->pagetable,firstaddr);
+  if(cur->is_occupied == 0)  
+    panic("This memory has been freed before! \n");
+  cur->is_occupied = 0;
 }
