@@ -75,13 +75,10 @@ void expandprocess(uint64 n)
   current->heap_sz+=n;
 }
 
-int is_init_malloc=0;
-
 //to init the malloc function;
 
 void init_malloc()
 {
-  current->heap_sz = USER_FREE_ADDRESS_START;
   uint64 addr = current->heap_sz;
   expandprocess(sizeof(MCB));
   pte_t *pte = page_walk(current->pagetable, addr, 0);
@@ -90,7 +87,6 @@ void init_malloc()
   first_mcb->next_mcb = NULL;
   first_mcb->size = 0;
   current->heap_occurpied_last = (uint64)first_mcb;
-  is_init_malloc = 1;
 }
 
 //to memory alignment
@@ -111,9 +107,10 @@ MCB *find_MCB(pagetable_t pagetable, uint64 addr)
 //to malloc memory for process.
 uint64 my_malloc(int n)
 {
-  if(is_init_malloc==0)
+  if(current->is_init_mcb_list==0)
   {
     init_malloc();
+    current->is_init_mcb_list=1;
   }
   MCB *cur = (MCB *)current->heap_occurpied_start;
   MCB *last = (MCB *)current->heap_occurpied_last;

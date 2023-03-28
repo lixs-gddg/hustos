@@ -25,8 +25,8 @@ typedef struct process_t {
   pagetable_t pagetable;
   // trapframe storing the context of a (User mode) process.
   trapframe* trapframe;
-
   //add for lab2_challenge2
+  int is_init_mcb_list;
   uint64 heap_sz; //the first address that heap can used;
   uint64 heap_occurpied_start;
   uint64 heap_occurpied_last;
