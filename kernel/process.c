@@ -297,7 +297,6 @@ int inc_sem(int semnum)
     sprint("This sem is not used\n");
     return -1;
   }
-  if(global_sems[semnum].length==-1) return -1;
   global_sems[semnum].value++;
   if(global_sems[semnum].length>0)
   {
